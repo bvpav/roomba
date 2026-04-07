@@ -1,0 +1,36 @@
+[gd_scene format=3 uid="uid://cxdbsppnb78t3"]
+
+[ext_resource type="Material" uid="uid://bjm70q5q6kkpx" path="res://mat_base.tres" id="1_6e7u2"]
+[ext_resource type="Material" uid="uid://g1ekjqrm85lw" path="res://mat_boundary.tres" id="2_ujqnb"]
+
+[node name="Field" type="Node3D" unique_id=476517886]
+
+[node name="BaseField" type="CSGBox3D" parent="." unique_id=1125099559]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, 0)
+size = Vector3(0.5, 0.01, 2)
+material = ExtResource("1_6e7u2")
+
+[node name="FlatResourceField" type="CSGBox3D" parent="." unique_id=718330195]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.25, 0, 0)
+size = Vector3(4, 0.01, 2)
+material = ExtResource("1_6e7u2")
+
+[node name="BoundaryTop" type="CSGBox3D" parent="." unique_id=1187297458]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.875, 0, -1.025)
+size = Vector3(4.6, 0.011, 0.05)
+material = ExtResource("2_ujqnb")
+
+[node name="BoundaryBottom" type="CSGBox3D" parent="." unique_id=648638912]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.875, 0, 1.025)
+size = Vector3(4.6, 0.011, 0.05)
+material = ExtResource("2_ujqnb")
+
+[node name="BoundaryRight" type="CSGBox3D" parent="." unique_id=1494759629]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.275, 0, 0)
+size = Vector3(0.05, 0.011, 2)
+material = ExtResource("2_ujqnb")
+
+[node name="BoundaryLeft" type="CSGBox3D" parent="." unique_id=174221201]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.275, 0, 0)
+size = Vector3(0.05, 0.011, 2)
+material = ExtResource("2_ujqnb")
