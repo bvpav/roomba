@@ -2,35 +2,129 @@
 
 [ext_resource type="Material" uid="uid://bjm70q5q6kkpx" path="res://mat_base.tres" id="1_6e7u2"]
 [ext_resource type="Material" uid="uid://g1ekjqrm85lw" path="res://mat_boundary.tres" id="2_ujqnb"]
+[ext_resource type="Material" uid="uid://b1fbhjf24oq52" path="res://mat_penalty.tres" id="3_kw8m4"]
+[ext_resource type="Material" uid="uid://wfwvb6s0d7go" path="res://mat_pit.tres" id="4_p2xvn"]
+[ext_resource type="Material" uid="uid://cxj1srjkiyoik" path="res://mat_pit_bound.tres" id="5_r7tqs"]
 
-[node name="Field" type="Node3D" unique_id=476517886]
+[node name="Field" type="Node3D" unique_id=1300839886]
+
+[node name="ArenaBase" type="CSGCombiner3D" parent="." unique_id=831204567]
+use_collision = true
+
+[node name="ArenaFloor" type="CSGBox3D" parent="ArenaBase" unique_id=294816753]
+size = Vector3(5.3, 0.008, 2.8)
+material = ExtResource("3_kw8m4")
+
+[node name="PitCutout" type="CSGBox3D" parent="ArenaBase" unique_id=567392184]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.375, 0, 0)
+operation = 2
+size = Vector3(0.15, 0.1, 0.3)
 
 [node name="BaseField" type="CSGBox3D" parent="." unique_id=1125099559]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, 0)
+use_collision = true
 size = Vector3(0.5, 0.01, 2)
 material = ExtResource("1_6e7u2")
 
-[node name="FlatResourceField" type="CSGBox3D" parent="." unique_id=718330195]
+[node name="ResourceField" type="CSGBox3D" parent="." unique_id=718330195]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.25, 0, 0)
+use_collision = true
+collision_mask = 33
 size = Vector3(4, 0.01, 2)
 material = ExtResource("1_6e7u2")
 
-[node name="BoundaryTop" type="CSGBox3D" parent="." unique_id=1187297458]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.875, 0, -1.025)
+[node name="FieldBoundary" type="Node3D" parent="." unique_id=392748156]
+
+[node name="BoundaryTop" type="CSGBox3D" parent="FieldBoundary" unique_id=1187297458]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1.025)
 size = Vector3(4.6, 0.011, 0.05)
 material = ExtResource("2_ujqnb")
 
-[node name="BoundaryBottom" type="CSGBox3D" parent="." unique_id=648638912]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.875, 0, 1.025)
+[node name="BoundaryBottom" type="CSGBox3D" parent="FieldBoundary" unique_id=648638912]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1.025)
 size = Vector3(4.6, 0.011, 0.05)
 material = ExtResource("2_ujqnb")
 
-[node name="BoundaryRight" type="CSGBox3D" parent="." unique_id=1494759629]
+[node name="BoundaryRight" type="CSGBox3D" parent="FieldBoundary" unique_id=1494759629]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.275, 0, 0)
 size = Vector3(0.05, 0.011, 2)
 material = ExtResource("2_ujqnb")
 
-[node name="BoundaryLeft" type="CSGBox3D" parent="." unique_id=174221201]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.275, 0, 0)
-size = Vector3(0.05, 0.011, 2)
+[node name="BoundaryLeftUpper" type="CSGBox3D" parent="FieldBoundary" unique_id=174221201]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.275, 0, -0.575)
+size = Vector3(0.05, 0.011, 0.85)
 material = ExtResource("2_ujqnb")
+
+[node name="BoundaryLeftLower" type="CSGBox3D" parent="FieldBoundary" unique_id=856123947]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.275, 0, 0.575)
+size = Vector3(0.05, 0.011, 0.85)
+material = ExtResource("2_ujqnb")
+
+[node name="PitBoundary" type="CSGBox3D" parent="." unique_id=429571368]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.275, 0, 0)
+size = Vector3(0.05, 0.012, 0.3)
+material = ExtResource("5_r7tqs")
+
+[node name="DepositPit" type="Node3D" parent="." unique_id=713948256]
+
+[node name="PitFloor" type="CSGBox3D" parent="DepositPit" unique_id=264918573]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.375, -0.15, 0)
+use_collision = true
+size = Vector3(0.15, 0.01, 0.3)
+material = ExtResource("4_p2xvn")
+
+[node name="PitWallLeft" type="CSGBox3D" parent="DepositPit" unique_id=941362758]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.455, -0.075, 0)
+use_collision = true
+size = Vector3(0.01, 0.15, 0.3)
+material = ExtResource("4_p2xvn")
+
+[node name="PitWallFront" type="CSGBox3D" parent="DepositPit" unique_id=158742936]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.38, -0.075, -0.155)
+use_collision = true
+size = Vector3(0.16, 0.15, 0.01)
+material = ExtResource("4_p2xvn")
+
+[node name="PitWallBack" type="CSGBox3D" parent="DepositPit" unique_id=672391845]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.38, -0.075, 0.155)
+use_collision = true
+size = Vector3(0.16, 0.15, 0.01)
+material = ExtResource("4_p2xvn")
+
+[node name="PenaltyWalls" type="Node3D" parent="." unique_id=538174629]
+
+[node name="WallTop" type="CSGBox3D" parent="PenaltyWalls" unique_id=815293746]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.125, -1.275)
+use_collision = true
+size = Vector3(5.3, 0.25, 0.25)
+material = ExtResource("3_kw8m4")
+
+[node name="WallBottom" type="CSGBox3D" parent="PenaltyWalls" unique_id=347621958]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.125, 1.275)
+use_collision = true
+size = Vector3(5.3, 0.25, 0.25)
+material = ExtResource("3_kw8m4")
+
+[node name="WallRight" type="CSGBox3D" parent="PenaltyWalls" unique_id=926348175]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.525, 0.125, 0)
+use_collision = true
+size = Vector3(0.25, 0.25, 2.3)
+material = ExtResource("3_kw8m4")
+
+[node name="WallLeftUpper" type="CSGBox3D" parent="PenaltyWalls" unique_id=483917265]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.525, 0.125, -0.65)
+use_collision = true
+size = Vector3(0.25, 0.25, 1)
+material = ExtResource("3_kw8m4")
+
+[node name="WallLeftLower" type="CSGBox3D" parent="PenaltyWalls" unique_id=761529384]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.525, 0.125, 0.65)
+use_collision = true
+size = Vector3(0.25, 0.25, 1)
+material = ExtResource("3_kw8m4")
+
+[node name="WallLeftPitBack" type="CSGBox3D" parent="PenaltyWalls" unique_id=629483751]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.55, 0.125, 0)
+use_collision = true
+size = Vector3(0.2, 0.25, 0.3)
+material = ExtResource("3_kw8m4")
