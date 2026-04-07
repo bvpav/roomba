@@ -1,0 +1,17 @@
+[gd_scene format=3 uid="uid://co3sh76r6oj5i"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_jfj6g"]
+size = Vector3(0.5, 0.5, 0.5)
+
+[node name="Rover" type="VehicleBody3D" unique_id=1586417934]
+
+[node name="RoverBoundsPlaceholder" type="CSGBox3D" parent="." unique_id=345302096]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
+size = Vector3(0.5, 0.5, 0.5)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=256145336]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
+shape = SubResource("BoxShape3D_jfj6g")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=715270354]
+transform = Transform3D(1, 0, 0, 0, 0.93577063, 0.35260937, 0, -0.35260937, 0.93577063, 0, 0.567, 1.064)
