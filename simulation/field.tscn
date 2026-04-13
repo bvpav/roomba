@@ -34,18 +34,13 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.25, 0.005, 0)
 [node name="FieldBoundary" type="Node3D" parent="." unique_id=392748156]
 
 [node name="BoundaryTop" type="CSGBox3D" parent="FieldBoundary" unique_id=1187297458]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1.025)
-size = Vector3(4.6, 0.011, 0.05)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, -1.025)
+size = Vector3(0.5, 0.011, 0.05)
 material = ExtResource("2_ujqnb")
 
 [node name="BoundaryBottom" type="CSGBox3D" parent="FieldBoundary" unique_id=648638912]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1.025)
-size = Vector3(4.6, 0.011, 0.05)
-material = ExtResource("2_ujqnb")
-
-[node name="BoundaryRight" type="CSGBox3D" parent="FieldBoundary" unique_id=1494759629]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.275, 0, 0)
-size = Vector3(0.05, 0.011, 2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, 1.025)
+size = Vector3(0.5, 0.011, 0.05)
 material = ExtResource("2_ujqnb")
 
 [node name="BoundaryLeftUpper" type="CSGBox3D" parent="FieldBoundary" unique_id=174221201]
@@ -93,21 +88,15 @@ material = ExtResource("4_p2xvn")
 [node name="PenaltyWalls" type="Node3D" parent="." unique_id=538174629]
 
 [node name="WallTop" type="CSGBox3D" parent="PenaltyWalls" unique_id=815293746]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.125, -1.275)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.2, 0.125, -1.275)
 use_collision = true
-size = Vector3(5.3, 0.25, 0.25)
+size = Vector3(0.9, 0.25, 0.25)
 material = ExtResource("3_kw8m4")
 
 [node name="WallBottom" type="CSGBox3D" parent="PenaltyWalls" unique_id=347621958]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.125, 1.275)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.2, 0.125, 1.275)
 use_collision = true
-size = Vector3(5.3, 0.25, 0.25)
-material = ExtResource("3_kw8m4")
-
-[node name="WallRight" type="CSGBox3D" parent="PenaltyWalls" unique_id=926348175]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.525, 0.125, 0)
-use_collision = true
-size = Vector3(0.25, 0.25, 2.3)
+size = Vector3(0.9, 0.25, 0.25)
 material = ExtResource("3_kw8m4")
 
 [node name="WallLeft" type="CSGBox3D" parent="PenaltyWalls" unique_id=92181768]
