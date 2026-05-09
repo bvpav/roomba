@@ -70,7 +70,7 @@ def run_mission(frame, driver_name: str, capacity: int) -> None:
           f"({det.deposit_cm[0]:.1f}, {det.deposit_cm[1]:.1f}) cm, "
           f"capacity={capacity}")
 
-    start = Pose(x=10.0, y=115.0, heading=0.0)
+    start = Pose(x=60.0, y=115.0, heading=0.0)
 
     print(f"[mission] driver = {driver_name}")
     driver = make_driver(driver_name)
