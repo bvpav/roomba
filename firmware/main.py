@@ -1,0 +1,141 @@
+#!/usr/bin/env python3
+"""Full proof-of-concept entry point.
+
+Pipeline:
+    browser camera/test image -> streaming server (this process)
+    -> perception.detect()    -> arena-cm goals
+    -> planner.Navigator      -> driver (mock | turtle | hardware)
+
+Usage:
+    python firmware/main.py --driver=turtle
+    python firmware/main.py --driver=mock     # headless dry run
+    python firmware/main.py --driver=hardware # on the rover
+"""
+
+from __future__ import annotations
+
+import argparse
+import socket
+import sys
+import time
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(HERE / "streaming"))
+
+import perception  # noqa: E402
+from controller import make_driver  # noqa: E402
+from planner import Navigator, Pose, calculate_best_path  # noqa: E402
+from streaming import server as stream_server  # noqa: E402
+
+
+def _local_ip() -> str:
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("8.8.8.8", 80))
+        return s.getsockname()[0]
+    except OSError:
+        return "127.0.0.1"
+    finally:
+        s.close()
+
+
+def wait_for_frame(min_frames: int, timeout_s: float):
+    """Block until `min_frames` distinct frames have arrived, return the last one."""
+    print(f"[main] waiting for {min_frames} frames (timeout {timeout_s:.0f}s)...")
+    deadline = time.time() + timeout_s
+    seen_ts = set()
+    last_frame = None
+    while time.time() < deadline:
+        frame, ts = stream_server.get_latest()
+        if frame is not None and ts not in seen_ts:
+            seen_ts.add(ts)
+            last_frame = frame
+            print(f"[main] frame {len(seen_ts)}/{min_frames} ({frame.shape[1]}x{frame.shape[0]})")
+            if len(seen_ts) >= min_frames:
+                return last_frame
+        time.sleep(0.1)
+    if last_frame is not None:
+        print(f"[main] timeout, using {len(seen_ts)} frame(s)")
+        return last_frame
+    raise TimeoutError("no frames received - did the browser connect to /ws?")
+
+
+def run_mission(frame, driver_name: str, capacity: int) -> None:
+    det = perception.detect(frame)
+    if det.deposit_cm is None:
+        raise RuntimeError("could not locate deposit pit (no yellow blob found)")
+    print(f"[mission] {len(det.resources_cm)} resources, deposit at "
+          f"({det.deposit_cm[0]:.1f}, {det.deposit_cm[1]:.1f}) cm, "
+          f"capacity={capacity}")
+
+    start = Pose(x=10.0, y=115.0, heading=0.0)
+
+    print(f"[mission] driver = {driver_name}")
+    driver = make_driver(driver_name)
+    driver.setup_view(perception.ARENA_W_CM, perception.ARENA_H_CM, start)
+    nav = Navigator(driver, start)
+    driver.draw_points(list(det.resources_cm) + [det.deposit_cm])
+
+    remaining = list(det.resources_cm)
+    total = len(remaining)
+    collected = 0
+    trip = 0
+    while remaining:
+        trip += 1
+        # Greedy NN from current pose, capped at carry capacity.
+        ordered_rest = calculate_best_path(nav.pose, remaining)
+        batch = ordered_rest[:capacity]
+        batch_set = set(batch)
+        remaining = [r for r in remaining if r not in batch_set]
+        print(f"[mission] trip {trip}: collect {len(batch)} "
+              f"({collected + len(batch)}/{total} after dropoff)")
+        for gx, gy in batch:
+            nav.move_to_goal(gx, gy)
+            collected += 1
+            print(f"[mission]   picked up #{collected} ({gx:.1f}, {gy:.1f})")
+        nav.move_to_goal(*det.deposit_cm)
+        print(f"[mission] trip {trip}: dropped {len(batch)} at pit "
+              f"({collected}/{total})")
+
+    driver.stop()
+    print(f"[mission] done in {trip} trip(s). final {nav.pose}")
+
+    if driver_name == "turtle":
+        print("close the turtle window to exit.")
+        import turtle
+        turtle.done()
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--driver", default="turtle", choices=["mock", "turtle", "hardware"])
+    ap.add_argument("--port", type=int, default=None,
+                    help="server port (default 8443 if cert.pem present, else 8080)")
+    ap.add_argument("--wait-frames", type=int, default=3)
+    ap.add_argument("--timeout", type=float, default=120.0)
+    ap.add_argument("--capacity", type=int, default=5,
+                    help="resources to carry per trip before returning to the pit")
+    args = ap.parse_args()
+
+    ssl_ctx = stream_server.load_ssl_context()
+    scheme = "https" if ssl_ctx else "http"
+    port = args.port if args.port is not None else (8443 if ssl_ctx else 8080)
+    if not ssl_ctx:
+        print("[!] no cert.pem/key.pem - serving plain HTTP (use the test image"
+              " or localhost; phones-on-LAN need HTTPS for getUserMedia)")
+
+    stream_server.start_in_thread(port=port, ssl_context=ssl_ctx)
+    ip = _local_ip()
+    print(f"[stream] phone:  {scheme}://{ip}:{port}/")
+    print(f"[stream] viewer: {scheme}://{ip}:{port}/viewer")
+
+    if args.capacity < 1:
+        ap.error("--capacity must be >= 1")
+    frame = wait_for_frame(args.wait_frames, args.timeout)
+    run_mission(frame, args.driver, args.capacity)
+
+
+if __name__ == "__main__":
+    main()

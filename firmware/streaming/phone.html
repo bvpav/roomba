@@ -1,0 +1,166 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>lunar-bitch phone cam</title>
+  <style>
+    html, body { margin: 0; background: #111; color: #eee; font-family: system-ui, sans-serif; }
+    #wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px; }
+    video, img.preview { width: 100%; max-width: 640px; background: #000; border-radius: 6px; display: block; }
+    #status { font-size: 14px; opacity: 0.85; min-height: 1.2em; }
+    button { padding: 10px 16px; font-size: 16px; border: 0; border-radius: 6px;
+             background: #2a7; color: #fff; }
+    button:disabled { background: #555; }
+    label { font-size: 14px; }
+    input[type=number] { width: 60px; }
+    fieldset { border: 1px solid #333; border-radius: 6px; padding: 8px 12px; }
+    legend { padding: 0 6px; font-size: 13px; opacity: 0.8; }
+  </style>
+</head>
+<body>
+<div id="wrap">
+  <h3>lunar-bitch phone cam</h3>
+
+  <fieldset>
+    <legend>source</legend>
+    <label><input type="radio" name="src" value="camera" checked> phone camera</label>
+    <label><input type="radio" name="src" value="image"> test image (field.png)</label>
+  </fieldset>
+
+  <video id="vid" autoplay playsinline muted></video>
+  <img id="preview" class="preview" hidden alt="test image preview">
+
+  <div>
+    <label>fps <input id="fps" type="number" value="10" min="1" max="30"></label>
+    <label>width <input id="w" type="number" value="1280" min="160" max="1920"></label>
+    <label>q <input id="q" type="number" value="0.7" min="0.1" max="1" step="0.05"></label>
+  </div>
+  <button id="go">start streaming</button>
+  <div id="status">pick a source and tap "start streaming"</div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const log = (m) => { $('status').textContent = m; console.log(m); };
+const selectedSource = () =>
+  document.querySelector('input[name=src]:checked').value;
+
+let stream, ws, timer, sending = false;
+
+document.querySelectorAll('input[name=src]').forEach((el) => {
+  el.addEventListener('change', () => {
+    const isImg = selectedSource() === 'image';
+    $('vid').hidden = isImg;
+    $('preview').hidden = !isImg;
+    if (isImg && !$('preview').src) $('preview').src = '/static/field.png';
+  });
+});
+
+async function loadImage(url) {
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.src = url;
+  await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+  return img;
+}
+
+async function startCamera() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    throw new Error("getUserMedia unavailable - need HTTPS or localhost");
+  }
+  const targetW = parseInt($('w').value, 10);
+  stream = await navigator.mediaDevices.getUserMedia({
+    audio: false,
+    video: {
+      facingMode: { ideal: "environment" },
+      width:  { ideal: targetW },
+      height: { ideal: Math.round(targetW * 9 / 16) },
+    },
+  });
+  $('vid').srcObject = stream;
+  await new Promise((r) => $('vid').onloadedmetadata = r);
+
+  const canvas = document.createElement("canvas");
+  canvas.width  = $('vid').videoWidth;
+  canvas.height = $('vid').videoHeight;
+  const ctx = canvas.getContext("2d");
+  const quality = parseFloat($('q').value);
+
+  return {
+    label: `camera ${canvas.width}x${canvas.height} jpeg q=${quality}`,
+    getBlob: () => new Promise((resolve) => {
+      ctx.drawImage($('vid'), 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(resolve, "image/jpeg", quality);
+    }),
+  };
+}
+
+async function startImage() {
+  // Send the original PNG bytes — no canvas re-encoding, no quality loss.
+  const resp = await fetch('/static/field.png');
+  const blob = await resp.blob();
+  $('preview').src = URL.createObjectURL(blob);
+  return {
+    label: `test image (${blob.size} bytes png, raw)`,
+    getBlob: () => Promise.resolve(blob),
+  };
+}
+
+async function start() {
+  $('go').disabled = true;
+  try {
+    const source = selectedSource() === 'image'
+      ? await startImage()
+      : await startCamera();
+
+    const proto = location.protocol === "https:" ? "wss:" : "ws:";
+    ws = new WebSocket(`${proto}//${location.host}/ws`);
+    ws.binaryType = "arraybuffer";
+    await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
+    log("websocket open");
+
+    const fps = Math.max(1, Math.min(30, parseInt($('fps').value, 10)));
+    let n = 0, t0 = performance.now();
+
+    const tick = async () => {
+      if (!ws || ws.readyState !== 1 || sending) return;
+      sending = true;
+      try {
+        const blob = await source.getBlob();
+        if (blob && ws.readyState === 1 && ws.bufferedAmount < 2_000_000) {
+          const buf = await blob.arrayBuffer();
+          ws.send(buf);
+          n++;
+          if (n % 30 === 0) {
+            const dt = (performance.now() - t0) / 1000;
+            log(`sent ${n} frames @ ${(n/dt).toFixed(1)} fps`);
+          }
+        }
+      } finally {
+        sending = false;
+      }
+    };
+
+    timer = setInterval(tick, Math.round(1000 / fps));
+    log(`streaming ${source.label} @ ${fps} fps`);
+
+    ws.onclose = () => { log("websocket closed"); stop(); };
+    ws.onerror = (e) => log("ws error: " + (e.message || "unknown"));
+  } catch (e) {
+    log("error: " + e.message);
+    $('go').disabled = false;
+  }
+}
+
+function stop() {
+  if (timer) clearInterval(timer);
+  if (ws) try { ws.close(); } catch (_) {}
+  if (stream) stream.getTracks().forEach((t) => t.stop());
+  $('go').disabled = false;
+}
+
+$('go').onclick = start;
+</script>
+</body>
+</html>

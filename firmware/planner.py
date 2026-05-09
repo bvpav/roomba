@@ -7,7 +7,7 @@ Uses a coordinate system (cm) and converts absolute goals into relative movement
 import math
 import sys
 from typing import List, Tuple
-from controller import BaseDriver, MockDriver, TurtleDriver
+from controller import BaseDriver, _parse_driver_arg, make_driver
 
 class Pose:
     """Represents the position and heading of the rover."""
@@ -101,21 +101,19 @@ if __name__ == "__main__":
     ordered_path = calculate_best_path(start, test_goals)
     
     # 4. Driver Selection
-    use_turtle = "--visualize" in sys.argv
-    if use_turtle:
-        driver = TurtleDriver()
-    else:
-        driver = MockDriver()
+    driver_name = _parse_driver_arg(sys.argv)
+    driver = make_driver(driver_name)
 
     # 5. Execute Mission
+    driver.setup_view(480.0, 230.0, start)
     navigator = Navigator(driver, start)
     driver.draw_points(ordered_path)
-    
+
     for gx, gy in ordered_path:
         navigator.move_to_goal(gx, gy)
 
     # 6. Finalization
-    if use_turtle:
+    if driver_name == "turtle":
         print("Done! Close the window to exit.")
         import turtle
         turtle.done()

@@ -36,6 +36,15 @@ class BaseDriver(ABC):
         """Draws target points on the visualization or logs them."""
         pass
 
+    def setup_view(self, arena_w: float, arena_h: float, start_pose) -> None:
+        """Match the visualization to the arena and place the rover at start.
+
+        Default no-op (mock/hardware don't render). TurtleDriver overrides
+        to use world coordinates with y-down so the picture matches the
+        overhead camera view of field.png.
+        """
+        return
+
 # --- CONCRETE STRATEGIES ---
 
 class MockDriver(BaseDriver):
@@ -79,6 +88,31 @@ class TurtleDriver(BaseDriver):
         self.marker.color("red")
         
         print("[TURTLE] Initialized X11 Visualization")
+        self.screen.update()
+
+    def setup_view(self, arena_w, arena_h, start_pose):
+        """Configure y-down arena view and teleport rover to start pose."""
+        margin = max(arena_w, arena_h) * 0.05
+        # y-down: world (0, arena_h) is screen lower-left, (arena_w, 0) is upper-right.
+        self.screen.setup(width=900, height=int(900 * arena_h / arena_w) + 60)
+        self.screen.setworldcoordinates(
+            -margin, arena_h + margin, arena_w + margin, -margin
+        )
+        # Draw arena rectangle for context
+        border = self.marker
+        border.color("black")
+        border.penup()
+        border.goto(0, 0)
+        border.pendown()
+        for corner in [(arena_w, 0), (arena_w, arena_h), (0, arena_h), (0, 0)]:
+            border.goto(*corner)
+        border.penup()
+        border.color("red")  # restore for goal markers
+        # Place rover
+        self.t.penup()
+        self.t.goto(start_pose.x, start_pose.y)
+        self.t.setheading(start_pose.heading)
+        self.t.pendown()
         self.screen.update()
 
     def draw_points(self, points):
@@ -178,6 +212,21 @@ class HardwareDriver(BaseDriver):
         """Hardware doesn't draw points, so this is a no-op."""
         pass
 
+# --- DRIVER FACTORY ---
+
+def make_driver(name: str) -> BaseDriver:
+    """Build a driver by name. Used by every entry point so the choice
+    between simulation and real motors lives in exactly one place."""
+    name = name.lower()
+    if name == "mock":
+        return MockDriver()
+    if name == "turtle":
+        return TurtleDriver()
+    if name == "hardware":
+        return HardwareDriver()
+    raise ValueError(f"unknown driver {name!r} (expected mock|turtle|hardware)")
+
+
 # --- CONTEXT CLASS ---
 
 class Rover:
@@ -198,27 +247,29 @@ class Rover:
 
 # --- MAIN EXECUTION ---
 
+def _parse_driver_arg(argv, default="mock"):
+    """Accepts --driver=NAME, --driver NAME, or legacy --visualize."""
+    if "--visualize" in argv:
+        return "turtle"
+    for i, a in enumerate(argv):
+        if a.startswith("--driver="):
+            return a.split("=", 1)[1]
+        if a == "--driver" and i + 1 < len(argv):
+            return argv[i + 1]
+    return default
+
+
 if __name__ == "__main__":
     import sys
-    
-    # 1. Driver Selection
-    use_turtle = "--visualize" in sys.argv
-    
-    if use_turtle:
-        print("Initializing Turtle Driver...")
-        driver = TurtleDriver()
-    else:
-        print("Testing with Mock Driver (Debug Mode):")
-        driver = MockDriver()
 
-    # 2. Execute Sequence
+    name = _parse_driver_arg(sys.argv)
+    print(f"Driver: {name}")
+    driver = make_driver(name)
+
     rover = Rover(driver)
     rover.run_test_sequence()
 
-    # 3. Finalization
-    if use_turtle:
+    if name == "turtle":
         print("Done! Close the window to exit.")
         import turtle
         turtle.done()
-    
-    print("To test on hardware, initialize Rover with HardwareDriver().")
