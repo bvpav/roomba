@@ -16,8 +16,10 @@ Two detection profiles are available:
 
   endurosat  — competition spec colors (bright-blue resources, yellow pit,
                matte-black penalty walls).
-  irl        — real-world testing with gray PLA stand-in resources on a
-               dark surface.  No pit / arena border detection.
+  irl        — real-world testing with metallic stand-in resources on a
+               textured surface.  Uses HoughCircles (gradient-based circle
+               detection) since the resources and floor overlap in color
+               space.  No pit / arena border detection.
 
 Spec colors (from EnduroSat-Endurance-Space-Race-2026.pdf):
   resources           bright blue   #067EC8
@@ -50,11 +52,14 @@ YELLOW_HSV_LO = np.array([15, 140, 120], dtype=np.uint8)  # ~#EDA600
 YELLOW_HSV_HI = np.array([30, 255, 255], dtype=np.uint8)
 
 # --- irl profile --------------------------------------------------------
-GRAY_HSV_LO = np.array([0, 0, 140], dtype=np.uint8)
-GRAY_HSV_HI = np.array([179, 60, 255], dtype=np.uint8)
-
-RESOURCE_AREA_FRAC_MIN = 0.00005
-RESOURCE_AREA_FRAC_MAX = 0.02
+HOUGH_DP = 1.5
+HOUGH_MIN_DIST = 50
+HOUGH_PARAM1 = 100
+HOUGH_PARAM2 = 30
+HOUGH_MIN_RADIUS = 5
+HOUGH_MAX_RADIUS = 50
+HOUGH_BLUR_KSIZE = 9
+HOUGH_POST_MIN_RADIUS = 14
 
 
 @dataclass
@@ -126,37 +131,25 @@ def _detect_resources_irl(
     img_h: int,
     px_to_cm,
 ) -> list[tuple[float, float]]:
-    blurred = cv2.GaussianBlur(frame_bgr, (5, 5), 0)
-    hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
-    gray_mask = cv2.inRange(hsv, GRAY_HSV_LO, GRAY_HSV_HI)
-    gray_mask = cv2.morphologyEx(gray_mask, cv2.MORPH_OPEN,
-                                 cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
-    gray_mask = cv2.morphologyEx(gray_mask, cv2.MORPH_CLOSE,
-                                 cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11)))
-    contours, _ = cv2.findContours(gray_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.GaussianBlur(gray, (HOUGH_BLUR_KSIZE, HOUGH_BLUR_KSIZE), 2)
+    circles = cv2.HoughCircles(
+        blurred, cv2.HOUGH_GRADIENT,
+        dp=HOUGH_DP, minDist=HOUGH_MIN_DIST,
+        param1=HOUGH_PARAM1, param2=HOUGH_PARAM2,
+        minRadius=HOUGH_MIN_RADIUS, maxRadius=HOUGH_MAX_RADIUS,
+    )
+    if circles is None:
+        return []
 
-    area_min = RESOURCE_AREA_FRAC_MIN * arena_area
-    area_max = RESOURCE_AREA_FRAC_MAX * arena_area
-
+    margin = HOUGH_MAX_RADIUS
     resources: list[tuple[float, float]] = []
-    for c in contours:
-        area = cv2.contourArea(c)
-        if not (area_min <= area <= area_max):
+    for x, y, r in circles[0]:
+        if r < HOUGH_POST_MIN_RADIUS:
             continue
-        perim = cv2.arcLength(c, True)
-        if perim == 0:
+        if x < margin or y < margin or x + margin >= img_w or y + margin >= img_h:
             continue
-        circularity = 4 * np.pi * area / (perim * perim)
-        if circularity < 0.4:
-            continue
-        rx, ry, rw, rh = cv2.boundingRect(c)
-        if min(rw, rh) / max(rw, rh) < 0.5:
-            continue
-        if rx == 0 or ry == 0 or rx + rw >= img_w or ry + rh >= img_h:
-            continue
-        ctr = _centroid(c)
-        if ctr is not None:
-            resources.append(px_to_cm(ctr[0], ctr[1]))
+        resources.append(px_to_cm(float(x), float(y)))
     return resources
 
 

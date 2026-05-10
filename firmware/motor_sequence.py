@@ -24,27 +24,10 @@ robot = Robot(
 
 def run_sequence():
     print("Starting sequence: Up a bit...")
-    robot.forward(SPEED)
-    sleep(SHORT_MOVE)
+    while True:
+        robot.forward(SPEED)
+        sleep(SHORT_MOVE)
 
-    print("Back a bit...")
-    robot.backward(SPEED)
-    sleep(SHORT_MOVE)
-
-    print("45 degree turn...")
-    # Using robot.right() for the turn; robot.left() is also available
-    robot.right(SPEED)
-    sleep(TURN_45)
-
-    print("Back a bit...")
-    robot.backward(SPEED)
-    sleep(SHORT_MOVE)
-
-    print("Forwards a bit...")
-    robot.forward(SPEED)
-    sleep(SHORT_MOVE)
-
-    print("Sequence complete. Stopping.")
     robot.stop()
 
 if __name__ == "__main__":
