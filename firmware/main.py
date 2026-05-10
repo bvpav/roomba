@@ -62,13 +62,17 @@ def wait_for_frame(min_frames: int, timeout_s: float):
     raise TimeoutError("no frames received - did the browser connect to /ws?")
 
 
-def run_mission(frame, driver_name: str, capacity: int) -> None:
-    det = perception.detect(frame)
-    if det.deposit_cm is None:
+def run_mission(frame, driver_name: str, capacity: int, profile: str = "irl") -> None:
+    det = perception.detect(frame, profile=profile)
+    if det.deposit_cm is None and profile == "endurosat":
         raise RuntimeError("could not locate deposit pit (no yellow blob found)")
-    print(f"[mission] {len(det.resources_cm)} resources, deposit at "
-          f"({det.deposit_cm[0]:.1f}, {det.deposit_cm[1]:.1f}) cm, "
-          f"capacity={capacity}")
+    if det.deposit_cm is not None:
+        print(f"[mission] {len(det.resources_cm)} resources, deposit at "
+              f"({det.deposit_cm[0]:.1f}, {det.deposit_cm[1]:.1f}) cm, "
+              f"capacity={capacity}")
+    else:
+        print(f"[mission] {len(det.resources_cm)} resources, no deposit pit, "
+              f"capacity={capacity}")
 
     start = Pose(x=60.0, y=115.0, heading=0.0)
 
@@ -76,7 +80,10 @@ def run_mission(frame, driver_name: str, capacity: int) -> None:
     driver = make_driver(driver_name)
     driver.setup_view(perception.ARENA_W_CM, perception.ARENA_H_CM, start)
     nav = Navigator(driver, start)
-    driver.draw_points(list(det.resources_cm) + [det.deposit_cm])
+    points = list(det.resources_cm)
+    if det.deposit_cm is not None:
+        points.append(det.deposit_cm)
+    driver.draw_points(points)
 
     remaining = list(det.resources_cm)
     total = len(remaining)
@@ -84,7 +91,6 @@ def run_mission(frame, driver_name: str, capacity: int) -> None:
     trip = 0
     while remaining:
         trip += 1
-        # Greedy NN from current pose, capped at carry capacity.
         ordered_rest = calculate_best_path(nav.pose, remaining)
         batch = ordered_rest[:capacity]
         batch_set = set(batch)
@@ -95,9 +101,10 @@ def run_mission(frame, driver_name: str, capacity: int) -> None:
             nav.move_to_goal(gx, gy)
             collected += 1
             print(f"[mission]   picked up #{collected} ({gx:.1f}, {gy:.1f})")
-        nav.move_to_goal(*det.deposit_cm)
-        print(f"[mission] trip {trip}: dropped {len(batch)} at pit "
-              f"({collected}/{total})")
+        if det.deposit_cm is not None:
+            nav.move_to_goal(*det.deposit_cm)
+            print(f"[mission] trip {trip}: dropped {len(batch)} at pit "
+                  f"({collected}/{total})")
 
     driver.stop()
     print(f"[mission] done in {trip} trip(s). final {nav.pose}")
@@ -117,6 +124,9 @@ def main() -> None:
     ap.add_argument("--timeout", type=float, default=120.0)
     ap.add_argument("--capacity", type=int, default=5,
                     help="resources to carry per trip before returning to the pit")
+    ap.add_argument("--profile", default=perception.DEFAULT_PROFILE,
+                    choices=perception.PROFILES,
+                    help="perception color profile")
     args = ap.parse_args()
 
     ssl_ctx = stream_server.load_ssl_context()
@@ -134,7 +144,7 @@ def main() -> None:
     if args.capacity < 1:
         ap.error("--capacity must be >= 1")
     frame = wait_for_frame(args.wait_frames, args.timeout)
-    run_mission(frame, args.driver, args.capacity)
+    run_mission(frame, args.driver, args.capacity, profile=args.profile)
 
 
 if __name__ == "__main__":

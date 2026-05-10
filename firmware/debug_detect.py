@@ -9,6 +9,7 @@ Opens an OpenCV window showing detection results overlaid on the input image:
 
 Usage:
     python firmware/debug_detect.py <image> [<image> ...]
+    python firmware/debug_detect.py --profile=endurosat <image>
 
 Keys:
     Left/Right or A/D  — cycle through images (when multiple)
@@ -76,13 +77,16 @@ def draw_detections(frame_bgr: np.ndarray, det: perception.Detection) -> np.ndar
 
 
 def main() -> None:
-    if len(sys.argv) < 2:
-        print("usage: debug_detect.py <image> [<image> ...]", file=sys.stderr)
-        sys.exit(2)
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("images", nargs="+", metavar="image")
+    ap.add_argument("--profile", default=perception.DEFAULT_PROFILE,
+                    choices=perception.PROFILES)
+    args = ap.parse_args()
 
-    paths = sys.argv[1:]
+    profile = args.profile
     frames: list[tuple[str, np.ndarray]] = []
-    for p in paths:
+    for p in args.images:
         img = cv2.imread(p)
         if img is None:
             print(f"warning: could not read {p}, skipping", file=sys.stderr)
@@ -100,9 +104,9 @@ def main() -> None:
     while True:
         if dirty:
             name, frame = frames[idx]
-            det = perception.detect(frame)
+            det = perception.detect(frame, profile=profile)
             vis = draw_detections(frame, det)
-            label = f"[{idx + 1}/{len(frames)}] {Path(name).name}"
+            label = f"[{idx + 1}/{len(frames)}] {Path(name).name} ({profile})"
             cv2.putText(vis, label, (10, vis.shape[0] - 12),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
             cv2.imshow(WINDOW, vis)
