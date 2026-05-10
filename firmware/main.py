@@ -76,12 +76,13 @@ def run_mission(frame, driver_name: str, capacity: int, profile: str = "irl") ->
         remaining = [r for r in remaining if r not in batch_set]
         print(f"[mission] trip {trip}: collect {len(batch)} "
               f"({collected + len(batch)}/{total} after dropoff)")
-        for gx, gy in batch:
-            nav.move_to_goal(gx, gy)
+        for i, (gx, gy) in enumerate(batch):
+            obstacles = remaining + batch[i + 1:]
+            nav.move_to_avoiding(gx, gy, obstacles)
             collected += 1
             print(f"[mission]   picked up #{collected} ({gx:.1f}, {gy:.1f})")
         if det.deposit_cm is not None:
-            nav.move_to_goal(*det.deposit_cm)
+            nav.move_to_avoiding(*det.deposit_cm, remaining)
             print(f"[mission] trip {trip}: dropped {len(batch)} at pit "
                   f"({collected}/{total})")
 
