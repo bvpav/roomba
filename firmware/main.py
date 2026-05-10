@@ -137,6 +137,7 @@ def main() -> None:
               " or localhost; phones-on-LAN need HTTPS for getUserMedia)")
 
     stream_server.start_in_thread(port=port, ssl_context=ssl_ctx)
+    stream_server.enable_detection(profile=args.profile)
     ip = _local_ip()
     print(f"[stream] phone:  {scheme}://{ip}:{port}/")
     print(f"[stream] viewer: {scheme}://{ip}:{port}/viewer")

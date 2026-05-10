@@ -40,6 +40,10 @@ _frame_lock = threading.Lock()
 latest_frame: np.ndarray | None = None
 latest_frame_ts: float = 0.0
 
+# Detection overlay state (populated by enable_detection worker).
+_det_lock = threading.Lock()
+_latest_detection: dict | None = None
+
 
 def set_latest(img: np.ndarray) -> None:
     global latest_frame, latest_frame_ts
@@ -51,6 +55,45 @@ def set_latest(img: np.ndarray) -> None:
 def get_latest() -> tuple[np.ndarray | None, float]:
     with _frame_lock:
         return latest_frame, latest_frame_ts
+
+
+def enable_detection(profile: str = "irl") -> None:
+    """Start a background thread running perception.detect() on new frames.
+
+    Results are served at GET /detections as JSON.  Runs at most once per
+    second so it adds very little overhead to the streaming pipeline."""
+    t = threading.Thread(target=_detection_worker, args=(profile,),
+                         name="detection-worker", daemon=True)
+    t.start()
+
+
+def _detection_worker(profile: str) -> None:
+    import sys as _sys
+    firmware_dir = os.path.dirname(ROOT)
+    if firmware_dir not in _sys.path:
+        _sys.path.insert(0, firmware_dir)
+    import perception  # noqa: E402
+
+    global _latest_detection
+    last_ts = 0.0
+    while True:
+        frame, ts = get_latest()
+        if frame is not None and ts != last_ts:
+            last_ts = ts
+            try:
+                det = perception.detect(frame, profile=profile)
+                result = {
+                    "resources": [list(r) for r in det.resources_cm],
+                    "deposit": list(det.deposit_cm) if det.deposit_cm else None,
+                    "arena_bbox": list(det.arena_bbox),
+                    "image_size": list(det.image_size),
+                    "ts": ts,
+                }
+                with _det_lock:
+                    _latest_detection = result
+            except Exception as e:
+                print(f"[detect] {e}")
+        time.sleep(1.0)
 
 
 async def index(request: web.Request) -> web.Response:
@@ -94,6 +137,14 @@ async def ws_ingest(request: web.Request) -> web.WebSocketResponse:
     return ws
 
 
+async def detections_handler(request: web.Request) -> web.Response:
+    with _det_lock:
+        data = _latest_detection
+    if data is None:
+        return web.json_response(None)
+    return web.json_response(data)
+
+
 async def mjpeg(request: web.Request) -> web.StreamResponse:
     boundary = "frame"
     resp = web.StreamResponse(
@@ -135,6 +186,7 @@ def _build_app() -> web.Application:
     app = web.Application()
     app.router.add_get("/", index)
     app.router.add_get("/viewer", viewer)
+    app.router.add_get("/detections", detections_handler)
     app.router.add_get("/mjpeg", mjpeg)
     app.router.add_get("/ws", ws_ingest)
     app.router.add_static("/static/", os.path.join(ROOT, "static"))
@@ -183,6 +235,16 @@ def load_ssl_context() -> ssl.SSLContext | None:
 
 
 def main() -> None:
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--detect", action="store_true",
+                    help="enable live detection overlay on /viewer")
+    ap.add_argument("--profile", default="irl", choices=("endurosat", "irl"))
+    args = ap.parse_args()
+
+    if args.detect:
+        enable_detection(args.profile)
+
     app = _build_app()
 
     ssl_ctx = load_ssl_context()
