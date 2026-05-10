@@ -1,4 +1,4 @@
-# lunar-bitch firmware
+# ROOMBA firmware
 
 Proof-of-concept autonomy stack for the rover. A phone (or laptop) films the
 arena from above, ships frames to the RPi over Wi-Fi, the RPi detects every
@@ -35,28 +35,28 @@ lives on a daemon thread, the detection + navigation loop on the main thread.
 
 ## Files
 
-| Path | What it is |
-| --- | --- |
-| `main.py` | Entry point. Hosts the server, waits for a frame, runs the mission. |
-| `perception.py` | Pure-function arena detector (run standalone for HSV tuning). |
-| `planner.py` | `Pose`, `Navigator`, `calculate_best_path` (nearest-neighbor TSP). |
-| `controller.py` | `BaseDriver` strategy + the three concrete drivers + `make_driver()`. |
-| `hal.py` | GPIO pin assignments. Edit these if the wiring changes. |
-| `motor_sequence.py` | Standalone hardware smoke test — drives the motors with no perception/planning. |
-| `streaming/server.py` | aiohttp WebSocket ingest, MJPEG viewer, `/static/`. |
-| `streaming/phone.html` | Phone-side capture page (camera or test image). |
-| `streaming/viewer.html` | Debug viewer that consumes `/mjpeg`. |
-| `streaming/static/field.png` | Spec arena image, used as the no-camera test source. |
-| `streaming/gen_cert.sh` | Generates self-signed cert for `getUserMedia` over LAN. |
+| Path                         | What it is                                                                      |
+| ---------------------------- | ------------------------------------------------------------------------------- |
+| `main.py`                    | Entry point. Hosts the server, waits for a frame, runs the mission.             |
+| `perception.py`              | Pure-function arena detector (run standalone for HSV tuning).                   |
+| `planner.py`                 | `Pose`, `Navigator`, `calculate_best_path` (nearest-neighbor TSP).              |
+| `controller.py`              | `BaseDriver` strategy + the three concrete drivers + `make_driver()`.           |
+| `hal.py`                     | GPIO pin assignments. Edit these if the wiring changes.                         |
+| `motor_sequence.py`          | Standalone hardware smoke test — drives the motors with no perception/planning. |
+| `streaming/server.py`        | aiohttp WebSocket ingest, MJPEG viewer, `/static/`.                             |
+| `streaming/phone.html`       | Phone-side capture page (camera or test image).                                 |
+| `streaming/viewer.html`      | Debug viewer that consumes `/mjpeg`.                                            |
+| `streaming/static/field.png` | Spec arena image, used as the no-camera test source.                            |
+| `streaming/gen_cert.sh`      | Generates self-signed cert for `getUserMedia` over LAN.                         |
 
 ## Hardware
 
 Motors are wired through a phase/enable driver. Pins are in `hal.py`:
 
-| Side | Direction (PHASE) | PWM (ENABLE) |
-| --- | --- | --- |
-| Left | GPIO 16 | GPIO 12 |
-| Right | GPIO 20 | GPIO 13 |
+| Side  | Direction (PHASE) | PWM (ENABLE) |
+| ----- | ----------------- | ------------ |
+| Left  | GPIO 16           | GPIO 12      |
+| Right | GPIO 20           | GPIO 13      |
 
 The RPi needs to reach the camera device (phone or laptop) over the local
 network. No internet required for the mission itself.
@@ -152,9 +152,11 @@ browser enforces this regardless of vendor (and on iOS, every browser is
 Safari/WebKit underneath, so "switch to Chrome" doesn't help). Three options:
 
 1. **Self-signed cert** (good for race day, no internet needed):
+
    ```bash
    ./firmware/streaming/gen_cert.sh
    ```
+
    Trust the cert on the phone (one-time pain on iOS, easier on Android).
    Server auto-detects `cert.pem` + `key.pem` next to `server.py` and serves
    on `:8443` instead of `:8080`.
@@ -162,7 +164,7 @@ Safari/WebKit underneath, so "switch to Chrome" doesn't help). Three options:
 2. **Tunnel** (good for development): `cloudflared tunnel --url http://localhost:8080`
    gives you a real HTTPS URL with a real cert. Requires internet.
 
-3. **Test image** (no camera at all): pick *test image (field.png)* in the
+3. **Test image** (no camera at all): pick _test image (field.png)_ in the
    browser. No `getUserMedia` involved, plain HTTP works. This is the
    primary way to verify the pipeline without dealing with certs.
 
@@ -174,30 +176,35 @@ Safari/WebKit underneath, so "switch to Chrome" doesn't help). Three options:
 Each module runs standalone for layer-by-layer verification.
 
 **Perception** — sanity-check HSV thresholds against any image:
+
 ```bash
 firmware/webrtc/.venv/bin/python firmware/perception.py path/to/frame.jpg
 # prints detected coordinates, writes field_debug.jpg with overlays
 ```
 
 **Streaming server** — without the planner stack:
+
 ```bash
 firmware/webrtc/.venv/bin/python firmware/streaming/server.py
 # open http://<rpi-ip>:8080/viewer to see the live MJPEG stream
 ```
 
 **Planner only** — fixed test goals, no perception, no streaming:
+
 ```bash
 firmware/webrtc/.venv/bin/python firmware/planner.py --driver=turtle
 ```
 
 **Controller only** — runs `Rover.run_test_sequence()`, hits the driver
 directly:
+
 ```bash
 firmware/webrtc/.venv/bin/python firmware/controller.py --driver=mock
 firmware/webrtc/.venv/bin/python firmware/controller.py --driver=hardware
 ```
 
 **Motors only** — bypasses everything else, drives a hardcoded sequence:
+
 ```bash
 firmware/webrtc/.venv/bin/python firmware/motor_sequence.py
 ```
@@ -212,7 +219,7 @@ Defined by `perception.py` and the field overhead view:
 - `+y` extends 230 cm down the wall (image-down convention; matches the
   overhead camera).
 - Headings are degrees, math convention (`0° = +x`, increases counter-
-  clockwise in the *math* sense — appears clockwise on the turtle window
+  clockwise in the _math_ sense — appears clockwise on the turtle window
   because we render y-down).
 - Robot start pose is hardcoded in `main.py:74` as `Pose(x=10, y=115, 0)` —
   just inside the wall, vertically centered, facing into the field.

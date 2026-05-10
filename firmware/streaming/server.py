@@ -14,7 +14,7 @@ HTTPS:
   localhost. Generate a self-signed cert next to this file:
 
       openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem \
-        -out cert.pem -days 365 -subj "/CN=lunar-bitch"
+        -out cert.pem -days 365 -subj "/CN=ROOMBA"
 
   Then trust it on the phone (Safari: Settings -> General ->
   About -> Certificate Trust Settings). If cert.pem and key.pem

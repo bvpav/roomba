@@ -1,4 +1,4 @@
-# lunar-bitch
+# ROOMBA
 
 Autonomous lunar rover for the **EnduroSat Endurance Space Race 2026** (July 13, Sofia, Bulgaria).
 
