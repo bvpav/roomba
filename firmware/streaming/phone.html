@@ -75,6 +75,10 @@
           camera</label
         >
         <label
+          ><input type="radio" name="src" value="screenshare" /> screen
+          share</label
+        >
+        <label
           ><input type="radio" name="src" value="endurosat" /> endurosat test
           image (field.png)</label
         >
@@ -125,11 +129,13 @@
 
       document.querySelectorAll("input[name=src]").forEach((el) => {
         el.addEventListener("change", () => {
-          const isImg = selectedSource() !== "camera";
-          $("vid").hidden = isImg;
-          $("preview").hidden = !isImg;
-          const src = sources[selectedSource()];
-          if (isImg && $("preview").src !== src) $("preview").src = src;
+          const sel = selectedSource();
+          const isVideo = sel === "camera" || sel === "screenshare";
+          $("vid").hidden = !isVideo;
+          $("preview").hidden = isVideo;
+          const src = sources[sel];
+          if (!isVideo && src && $("preview").src !== src)
+            $("preview").src = src;
         });
       });
 
@@ -176,8 +182,38 @@
         };
       }
 
+      async function startScreenshare() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+          throw new Error("getDisplayMedia unavailable - need HTTPS or localhost");
+        }
+        const targetW = parseInt($("w").value, 10);
+        stream = await navigator.mediaDevices.getDisplayMedia({
+          video: {
+            width: { ideal: targetW },
+            height: { ideal: Math.round((targetW * 9) / 16) },
+          },
+          audio: false,
+        });
+        $("vid").srcObject = stream;
+        await new Promise((r) => ($("vid").onloadedmetadata = r));
+
+        const canvas = document.createElement("canvas");
+        canvas.width = $("vid").videoWidth;
+        canvas.height = $("vid").videoHeight;
+        const ctx = canvas.getContext("2d");
+        const quality = parseFloat($("q").value);
+
+        return {
+          label: `screenshare ${canvas.width}x${canvas.height} jpeg q=${quality}`,
+          getBlob: () =>
+            new Promise((resolve) => {
+              ctx.drawImage($("vid"), 0, 0, canvas.width, canvas.height);
+              canvas.toBlob(resolve, "image/jpeg", quality);
+            }),
+        };
+      }
+
       async function startImage() {
-        // Send the original PNG bytes — no canvas re-encoding, no quality loss.
         const src = sources[selectedSource()];
         const resp = await fetch(src);
         const blob = await resp.blob();
@@ -191,10 +227,13 @@
       async function start() {
         $("go").disabled = true;
         try {
+          const sel = selectedSource();
           const source =
-            selectedSource() === "camera"
+            sel === "camera"
               ? await startCamera()
-              : await startImage();
+              : sel === "screenshare"
+                ? await startScreenshare()
+                : await startImage();
 
           const proto = location.protocol === "https:" ? "wss:" : "ws:";
           ws = new WebSocket(`${proto}//${location.host}/ws`);
