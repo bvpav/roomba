@@ -19,6 +19,7 @@
 <body>
   <div id="controls">
     <label><input type="checkbox" id="toggle" checked> overlay</label>
+    <button type="button" id="navgo">Go</button>
   </div>
   <canvas id="c"></canvas>
   <img id="src" src="/mjpeg">
@@ -124,6 +125,12 @@
         .catch(function() {});
       setTimeout(poll, 1000);
     }
+
+    document.getElementById('navgo').onclick = function() {
+      fetch('/go', {method: 'POST'})
+        .then(function(r) { return r.json().then(function(j) { return {r: r, j: j}; }); })
+        .then(function(x) { if (!x.r.ok) alert(x.j.error || x.r.status); });
+    };
 
     requestAnimationFrame(draw);
     poll();

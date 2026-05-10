@@ -44,6 +44,32 @@ latest_frame_ts: float = 0.0
 _det_lock = threading.Lock()
 _latest_detection: dict | None = None
 
+# Optional POST /go mission trigger (enabled by firmware/main.py --wait-go).
+_go_runner = None
+_mission_lock = threading.Lock()
+_mission_busy = False
+_pending_go_snapshot: np.ndarray | None = None
+
+
+def set_go_runner(fn) -> None:
+    """Register mission entry; None disables POST /go."""
+    global _go_runner
+    _go_runner = fn
+
+
+def set_mission_busy(busy: bool) -> None:
+    global _mission_busy
+    with _mission_lock:
+        _mission_busy = busy
+
+
+def pop_go_snapshot() -> np.ndarray | None:
+    global _pending_go_snapshot
+    with _mission_lock:
+        snap = _pending_go_snapshot
+        _pending_go_snapshot = None
+        return snap
+
 
 def set_latest(img: np.ndarray) -> None:
     global latest_frame, latest_frame_ts
@@ -145,6 +171,32 @@ async def detections_handler(request: web.Request) -> web.Response:
     return web.json_response(data)
 
 
+async def go_handler(request: web.Request) -> web.Response:
+    global _pending_go_snapshot
+    if _go_runner is None:
+        return web.json_response(
+            {"ok": False, "error": "run main.py with --wait-go"},
+            status=503,
+        )
+    frame, _ = get_latest()
+    if frame is None:
+        return web.json_response({"ok": False, "error": "no frame yet"}, status=400)
+    snap = frame.copy()
+    with _mission_lock:
+        if _mission_busy:
+            return web.json_response(
+                {"ok": False, "error": "mission already running"},
+                status=409,
+            )
+        if _pending_go_snapshot is not None:
+            return web.json_response(
+                {"ok": False, "error": "mission already queued"},
+                status=409,
+            )
+        _pending_go_snapshot = snap
+    return web.json_response({"ok": True})
+
+
 async def mjpeg(request: web.Request) -> web.StreamResponse:
     boundary = "frame"
     resp = web.StreamResponse(
@@ -187,6 +239,7 @@ def _build_app() -> web.Application:
     app.router.add_get("/", index)
     app.router.add_get("/viewer", viewer)
     app.router.add_get("/detections", detections_handler)
+    app.router.add_post("/go", go_handler)
     app.router.add_get("/mjpeg", mjpeg)
     app.router.add_get("/ws", ws_ingest)
     app.router.add_static("/static/", os.path.join(ROOT, "static"))

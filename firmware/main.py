@@ -7,9 +7,9 @@ Pipeline:
     -> planner.Navigator      -> driver (mock | turtle | hardware)
 
 Usage:
-    python firmware/main.py --driver=turtle
-    python firmware/main.py --driver=mock     # headless dry run
-    python firmware/main.py --driver=hardware # on the rover
+    python firmware/main.py --driver=turtle    # press Go in viewer/phone to start
+    python firmware/main.py --driver=mock      # headless dry run
+    python firmware/main.py --driver=hardware  # on the rover
 """
 
 from __future__ import annotations
@@ -39,27 +39,6 @@ def _local_ip() -> str:
         return "127.0.0.1"
     finally:
         s.close()
-
-
-def wait_for_frame(min_frames: int, timeout_s: float):
-    """Block until `min_frames` distinct frames have arrived, return the last one."""
-    print(f"[main] waiting for {min_frames} frames (timeout {timeout_s:.0f}s)...")
-    deadline = time.time() + timeout_s
-    seen_ts = set()
-    last_frame = None
-    while time.time() < deadline:
-        frame, ts = stream_server.get_latest()
-        if frame is not None and ts not in seen_ts:
-            seen_ts.add(ts)
-            last_frame = frame
-            print(f"[main] frame {len(seen_ts)}/{min_frames} ({frame.shape[1]}x{frame.shape[0]})")
-            if len(seen_ts) >= min_frames:
-                return last_frame
-        time.sleep(0.1)
-    if last_frame is not None:
-        print(f"[main] timeout, using {len(seen_ts)} frame(s)")
-        return last_frame
-    raise TimeoutError("no frames received - did the browser connect to /ws?")
 
 
 def run_mission(frame, driver_name: str, capacity: int, profile: str = "irl") -> None:
@@ -112,7 +91,10 @@ def run_mission(frame, driver_name: str, capacity: int, profile: str = "irl") ->
     if driver_name == "turtle":
         print("close the turtle window to exit.")
         import turtle
-        turtle.done()
+        try:
+            turtle.done()
+        except Exception:
+            pass
 
 
 def main() -> None:
@@ -120,14 +102,16 @@ def main() -> None:
     ap.add_argument("--driver", default="turtle", choices=["mock", "turtle", "hardware"])
     ap.add_argument("--port", type=int, default=None,
                     help="server port (default 8443 if cert.pem present, else 8080)")
-    ap.add_argument("--wait-frames", type=int, default=3)
-    ap.add_argument("--timeout", type=float, default=120.0)
     ap.add_argument("--capacity", type=int, default=5,
                     help="resources to carry per trip before returning to the pit")
     ap.add_argument("--profile", default=perception.DEFAULT_PROFILE,
                     choices=perception.PROFILES,
                     help="perception color profile")
     args = ap.parse_args()
+
+    stream_server.set_go_runner(
+        lambda f: run_mission(f, args.driver, args.capacity, profile=args.profile)
+    )
 
     ssl_ctx = stream_server.load_ssl_context()
     scheme = "https" if ssl_ctx else "http"
@@ -141,11 +125,28 @@ def main() -> None:
     ip = _local_ip()
     print(f"[stream] phone:  {scheme}://{ip}:{port}/")
     print(f"[stream] viewer: {scheme}://{ip}:{port}/viewer")
+    print("[stream] mission: POST /go or Go in viewer / phone")
 
     if args.capacity < 1:
         ap.error("--capacity must be >= 1")
-    frame = wait_for_frame(args.wait_frames, args.timeout)
-    run_mission(frame, args.driver, args.capacity, profile=args.profile)
+    try:
+        while True:
+            frame = stream_server.pop_go_snapshot()
+            if frame is None:
+                time.sleep(0.1)
+                continue
+            stream_server.set_mission_busy(True)
+            try:
+                run_mission(frame, args.driver, args.capacity, profile=args.profile)
+            except Exception as e:
+                print(f"[mission] failed: {e}")
+            finally:
+                stream_server.set_mission_busy(False)
+            if args.driver == "turtle":
+                print("[main] turtle window closed; exiting.")
+                return
+    except KeyboardInterrupt:
+        return
 
 
 if __name__ == "__main__":

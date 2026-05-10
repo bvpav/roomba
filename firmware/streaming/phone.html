@@ -100,6 +100,7 @@
         /></label>
       </div>
       <button id="go">start streaming</button>
+      <button type="button" id="navgo">Go</button>
       <div id="status">pick a source and tap "start streaming"</div>
     </div>
 
@@ -256,6 +257,16 @@
       }
 
       $("go").onclick = start;
+
+      $("navgo").onclick = () => {
+        fetch("/go", { method: "POST" })
+          .then((r) => r.json().then((j) => ({ r, j })))
+          .then(({ r, j }) => {
+            if (!r.ok) log(j.error || String(r.status));
+            else log("mission started");
+          })
+          .catch((e) => log(String(e)));
+      };
     </script>
   </body>
 </html>
