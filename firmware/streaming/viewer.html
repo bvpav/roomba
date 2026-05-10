@@ -1,0 +1,190 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>ROOMBA viewer</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #111;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+      }
+      #src {
+        display: none;
+      }
+      #controls {
+        position: fixed;
+        top: 8px;
+        right: 8px;
+        z-index: 10;
+        background: rgba(0, 0, 0, 0.6);
+        padding: 6px 10px;
+        border-radius: 4px;
+      }
+      #controls label {
+        color: #ccc;
+        font: 13px monospace;
+        cursor: pointer;
+        user-select: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="controls">
+      <label><input type="checkbox" id="toggle" checked /> overlay</label>
+      <button type="button" id="navgo">Go</button>
+    </div>
+    <canvas id="c"></canvas>
+    <img id="src" src="/mjpeg" />
+    <script>
+      var ARENA_W = 480,
+        ARENA_H = 230;
+      var START_X = 60,
+        START_Y = 115;
+      var img = document.getElementById("src");
+      var canvas = document.getElementById("c");
+      var ctx = canvas.getContext("2d");
+      var toggle = document.getElementById("toggle");
+      var det = null;
+
+      function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
+      window.addEventListener("resize", resize);
+      resize();
+
+      function draw() {
+        var iw = img.naturalWidth,
+          ih = img.naturalHeight;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (iw > 0 && ih > 0) {
+          var scale = Math.min(canvas.width / iw, canvas.height / ih);
+          var dw = iw * scale,
+            dh = ih * scale;
+          var dx = (canvas.width - dw) / 2,
+            dy = (canvas.height - dh) / 2;
+          ctx.drawImage(img, dx, dy, dw, dh);
+          if (toggle.checked && det) drawOverlay(dx, dy, scale);
+        }
+        requestAnimationFrame(draw);
+      }
+
+      function drawOverlay(dx, dy, scale) {
+        var bx = det.arena_bbox[0],
+          by = det.arena_bbox[1];
+        var bw = det.arena_bbox[2],
+          bh = det.arena_bbox[3];
+
+        function cm2c(xcm, ycm) {
+          return [
+            dx + (bx + (xcm * bw) / ARENA_W) * scale,
+            dy + (by + (ycm * bh) / ARENA_H) * scale,
+          ];
+        }
+
+        // arena bounding box
+        ctx.strokeStyle = "#ff0";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(
+          dx + bx * scale,
+          dy + by * scale,
+          bw * scale,
+          bh * scale,
+        );
+
+        // resources
+        ctx.strokeStyle = "#0f0";
+        ctx.fillStyle = "#0f0";
+        ctx.lineWidth = 2;
+        var r = 8;
+        for (var i = 0; i < det.resources.length; i++) {
+          var p = cm2c(det.resources[i][0], det.resources[i][1]);
+          ctx.strokeRect(p[0] - r, p[1] - r, r * 2, r * 2);
+          ctx.font = "11px monospace";
+          ctx.fillText(String(i), p[0] + r + 2, p[1] + 4);
+        }
+
+        // deposit pit
+        if (det.deposit) {
+          var pp = cm2c(det.deposit[0], det.deposit[1]);
+          ctx.strokeStyle = "#f5a500";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(pp[0] - 12, pp[1]);
+          ctx.lineTo(pp[0] + 12, pp[1]);
+          ctx.moveTo(pp[0], pp[1] - 12);
+          ctx.lineTo(pp[0], pp[1] + 12);
+          ctx.stroke();
+          ctx.fillStyle = "#f5a500";
+          ctx.font = "14px monospace";
+          ctx.fillText("PIT", pp[0] + 16, pp[1] - 6);
+        }
+
+        // start position
+        var sp = cm2c(START_X, START_Y);
+        ctx.strokeStyle = "#f0f";
+        ctx.lineWidth = 2;
+        var d = 10;
+        ctx.beginPath();
+        ctx.moveTo(sp[0], sp[1] - d);
+        ctx.lineTo(sp[0] + d, sp[1]);
+        ctx.lineTo(sp[0], sp[1] + d);
+        ctx.lineTo(sp[0] - d, sp[1]);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fillStyle = "#f0f";
+        ctx.font = "12px monospace";
+        ctx.fillText("START", sp[0] + d + 2, sp[1] + 4);
+
+        // HUD
+        ctx.fillStyle = "#0f0";
+        ctx.font = "15px monospace";
+        ctx.fillText("resources: " + det.resources.length, 10, 24);
+        if (det.deposit) {
+          ctx.fillStyle = "#f5a500";
+          ctx.fillText(
+            "pit: (" +
+              det.deposit[0].toFixed(0) +
+              ", " +
+              det.deposit[1].toFixed(0) +
+              ") cm",
+            10,
+            44,
+          );
+        }
+      }
+
+      function poll() {
+        fetch("/detections")
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function (d) {
+            if (d) det = d;
+          })
+          .catch(function () {});
+        setTimeout(poll, 1000);
+      }
+
+      document.getElementById("navgo").onclick = function () {
+        fetch("/go", { method: "POST" })
+          .then(function (r) {
+            return r.json().then(function (j) {
+              return { r: r, j: j };
+            });
+          })
+          .then(function (x) {
+            if (!x.r.ok) alert(x.j.error || x.r.status);
+          });
+      };
+
+      requestAnimationFrame(draw);
+      poll();
+    </script>
+  </body>
+</html>
