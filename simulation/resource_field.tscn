@@ -1,0 +1,13 @@
+[gd_scene format=3 uid="uid://bw8fj2ryvtn5e"]
+
+[ext_resource type="Material" uid="uid://bjm70q5q6kkpx" path="res://mat_base.tres" id="1_c65fh"]
+[ext_resource type="Script" uid="uid://cr35klssu2lib" path="res://resource_field.gd" id="1_rfscript"]
+
+[node name="ResourceField" type="MeshInstance3D" unique_id=1532305015]
+material_override = ExtResource("1_c65fh")
+script = ExtResource("1_rfscript")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=1367842341]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=449797274]
+unique_name_in_owner = true

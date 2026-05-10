@@ -1,9 +1,12 @@
-[gd_scene format=3 uid="uid://co3sh76r6oj5i"]
+[gd_scene load_steps=3 format=3 uid="uid://co3sh76r6oj5i"]
+
+[ext_resource type="Script" uid="uid://b3mxp6rk8nt2w" path="res://rover.gd" id="1_rover_gd"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_jfj6g"]
 size = Vector3(0.5, 0.5, 0.5)
 
-[node name="Rover" type="VehicleBody3D" unique_id=1586417934]
+[node name="Rover" type="CharacterBody3D" unique_id=1586417934]
+script = ExtResource("1_rover_gd")
 
 [node name="RoverBoundsPlaceholder" type="CSGBox3D" parent="." unique_id=345302096]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)

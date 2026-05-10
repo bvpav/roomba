@@ -6,6 +6,7 @@
 [ext_resource type="Material" uid="uid://wfwvb6s0d7go" path="res://mat_pit.tres" id="4_p2xvn"]
 [ext_resource type="Material" uid="uid://cxj1srjkiyoik" path="res://mat_pit_bound.tres" id="5_r7tqs"]
 [ext_resource type="PackedScene" uid="uid://co3sh76r6oj5i" path="res://rover.tscn" id="6_gj8yl"]
+[ext_resource type="PackedScene" uid="uid://bw8fj2ryvtn5e" path="res://resource_field.tscn" id="7_rfscene"]
 
 [node name="Field" type="Node3D" unique_id=1300839886]
 
@@ -27,12 +28,8 @@ use_collision = true
 size = Vector3(0.5, 0.01, 2)
 material = ExtResource("1_6e7u2")
 
-[node name="ResourceField" type="CSGBox3D" parent="." unique_id=718330195]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.25, 0, 0)
-use_collision = true
-collision_mask = 33
-size = Vector3(4, 0.01, 2)
-material = ExtResource("1_6e7u2")
+[node name="ResourceField" parent="." unique_id=718330195 instance=ExtResource("7_rfscene")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.25, 0.005, 0)
 
 [node name="FieldBoundary" type="Node3D" parent="." unique_id=392748156]
 
