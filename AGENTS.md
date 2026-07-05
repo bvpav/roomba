@@ -8,6 +8,7 @@ Goal: autonomously collect and deposit 40 resources from a resource field into a
 
 ```
 simulation/     Godot 4.6 testing environment (small, secondary concern)
+EnduroSat-Endurance-Space-Race-2026.pdf Competition rules, guidelines and arena specifications (IMPORTANT)
 ```
 
 More directories will be added as the project grows (rover firmware, perception, planning, etc.).

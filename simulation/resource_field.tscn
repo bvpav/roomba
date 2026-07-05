@@ -1,0 +1,17 @@
+[gd_scene format=3 uid="uid://bw8fj2ryvtn5e"]
+
+[ext_resource type="Material" uid="uid://bjm70q5q6kkpx" path="res://mat_base.tres" id="1_c65fh"]
+[ext_resource type="Script" uid="uid://cr35klssu2lib" path="res://resource_field.gd" id="1_rfscript"]
+[ext_resource type="Material" uid="uid://g1ekjqrm85lw" path="res://mat_boundary.tres" id="3_bound"]
+[ext_resource type="Material" uid="uid://b1fbhjf24oq52" path="res://mat_penalty.tres" id="4_penal"]
+
+[node name="ResourceField" type="MeshInstance3D" unique_id=1532305015]
+script = ExtResource("1_rfscript")
+material_field = ExtResource("1_c65fh")
+material_boundary = ExtResource("3_bound")
+material_penalty = ExtResource("4_penal")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=1367842341]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=449797274]
+unique_name_in_owner = true
